@@ -4,6 +4,7 @@ import { Buffer } from 'node:buffer'
 import { randomUUID } from 'node:crypto'
 import { Context, Service } from '@deepseek-ai/cordis'
 import s from '@deepseek-ai/schemastery'
+import { Remote, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol'
 import type { CallId } from '@deepseek-ai/dsh-llm'
 import type { Session, SessionEvent, SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-session-persistence'
@@ -164,8 +165,15 @@ function nextRevision(taskId: TaskId, current: number): number {
   return current + 1
 }
 
-/** Durable Task store. Task records and assignments publish only after storage commits. */
-export class TaskStore extends Service {
+/**
+ * Durable Task store. Task records and assignments publish only after storage commits.
+ *
+ * Extends {@link TypertRemoteService} so the Cordis Gateway routes the
+ * `@Remote`-decorated methods below to browser callers as `ctx.remote.taskBoard.*`
+ * (wire namespace `taskBoard`), while the host-facing service is still resolved
+ * through `ctx.tasks` (unchanged Cordis service key).
+ */
+export class TaskStore extends TypertRemoteService {
   static inject = ['sessions', 'sessionPersistence', 'storageDomain']
 
   static Config: s<Config> = s.object({
@@ -181,7 +189,7 @@ export class TaskStore extends Service {
   private assignmentTail: Promise<void> = Promise.resolve()
 
   constructor(ctx: Context, config: Config) {
-    super(ctx, 'tasks')
+    super(ctx, 'tasks', { namespace: 'taskBoard' })
     this.limits = resolveConfig(config)
   }
 
@@ -204,6 +212,7 @@ export class TaskStore extends Service {
    * @throws {TypeError} when either field is blank.
    * @throws {RangeError} when either field exceeds its configured byte limit.
    */
+  @Remote
   async create(input: TaskCreateInput): Promise<TaskView> {
     validateText('title', input.title, this.limits.maxTitleBytes)
     validateText('objective', input.objective, this.limits.maxObjectiveBytes)
@@ -227,6 +236,7 @@ export class TaskStore extends Service {
    * @param id - Task identity to read.
    * @returns a fresh immutable projection, or `undefined` when absent.
    */
+  @Remote
   get(id: TaskId): TaskView | undefined {
     const record = this.requireTasks().get(id)
     return record === undefined ? undefined : snapshotTask(id, record)
@@ -236,6 +246,7 @@ export class TaskStore extends Service {
    * List Tasks by most recent durable mutation, then stable id.
    * @returns fresh immutable projections in display order.
    */
+  @Remote
   list(): readonly TaskView[] {
     return Object.freeze([...this.requireTasks().entries()]
       .sort(([leftId, left], [rightId, right]) =>
@@ -254,6 +265,7 @@ export class TaskStore extends Service {
    * @throws {TypeError} when the revision or replacement text is invalid.
    * @throws {RangeError} when replacement text exceeds a configured byte limit.
    */
+  @Remote
   async update(id: TaskId, expectedRevision: number, input: TaskUpdateInput): Promise<TaskView> {
     if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
       throw new TypeError('task: expectedRevision must be a positive safe integer')
@@ -291,6 +303,7 @@ export class TaskStore extends Service {
    * @throws {TaskClosedError} when the Task is closed.
    * @throws {TaskSessionReassignmentError} when work has started under another Task.
    */
+  @Remote
   assignSession(sessionId: SessionId, taskId: TaskId): Promise<TaskAssignment> {
     return this.enqueueAssignment(async () => {
       const task = this.requireTasks().get(taskId)
@@ -321,6 +334,7 @@ export class TaskStore extends Service {
    * @returns `true` when an assignment row was removed; otherwise `false`.
    * @throws {TaskSessionReassignmentError} when the assigned lifecycle has started work.
    */
+  @Remote
   unassignSession(sessionId: SessionId): Promise<boolean> {
     return this.enqueueAssignment(async () => {
       const existing = this.requireAssignments().get(sessionId)
@@ -339,6 +353,7 @@ export class TaskStore extends Service {
    * @param sessionId - Session identity used as the assignment key.
    * @returns an immutable assignment, or `undefined` when no row exists.
    */
+  @Remote
   getAssignment(sessionId: SessionId): TaskAssignment | undefined {
     const record = this.requireAssignments().get(sessionId)
     return record === undefined ? undefined : this.snapshotAssignment(sessionId, record)
