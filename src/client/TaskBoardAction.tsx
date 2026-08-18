@@ -15,14 +15,14 @@ import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import type { TypertRemoteNamespaceMap } from '@deepseek-ai/dsh-typert-protocol'
+import type { TaskBoardRemote } from './task-board-remote.ts'
 import { TaskBoardModal } from './TaskBoardModal.tsx'
 import css from './TaskBoardAction.module.css'
 
 /** Business face injected by the sidebar-footer registration. */
 export interface TaskBoardActionInjected {
-  /** Task remote face served by the host TaskStore. */
-  readonly remote: TypertRemoteNamespaceMap['taskBoard']
+  /** Task remote face — direct-fetch caller talking to the host TaskStore. */
+  readonly remote: TaskBoardRemote
   /** Snapshot of the current session id, read fresh on each call. */
   currentSessionId(): SessionId | undefined
 }

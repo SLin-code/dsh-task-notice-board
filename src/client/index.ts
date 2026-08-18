@@ -9,48 +9,24 @@
  * page: every open Session lookup is driven by the framework-injected
  * `sessionId` at the moment the user is on that Session.
  *
- * All Task reads and writes ride `ctx.remote.taskBoard.*` — served by the
- * host TaskStore's TypertRemoteService binding, routed by Cordis Gateway's
- * SRC reflection, and therefore requires no static registration on the
- * harness side. Copy is localized through `ctx.locale`, namespace
- * `taskBoard`.
+ * Task reads and writes ride a plain-fetch caller (see
+ * ./task-board-remote.ts) rather than `ctx.remote.taskBoard.*` — the harness
+ * client-side `ctx.remote` proxy is built from a static list of Typert
+ * contributions bundled at boot, so third-party namespaces cannot appear on
+ * it without a build-time artefact. The Gateway on the server, however,
+ * resolves any @Remote-decorated Service by SRC reflection, so the wire
+ * endpoint answers just fine. Copy is localized through `ctx.locale`,
+ * namespace `taskBoard`.
  */
 import type { Context } from '@deepseek-ai/cordis'
 import type { ISessions } from '@deepseek-ai/dsh-client-runtime/client'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-// Type-only: pull the api-remotes client merge (ctx.remote).
-import type {} from '@deepseek-ai/dsh-api-remotes/client'
 // Type-only: pull the ui-locale merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pull the sidebar SlotMap merge (`sidebar.footer.action`).
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import { TaskBoardAction, type TaskBoardActionInjected } from './TaskBoardAction.tsx'
 import { en, zh, type TaskBoardKey } from './locales.ts'
-import type {
-  TaskAssignment,
-  TaskCreateInput,
-  TaskId,
-  TaskUpdateInput,
-  TaskView,
-} from '../task/types.ts'
-
-/**
- * Extend the Typert remote namespace map with the `taskBoard` face served by
- * host TaskStore.
- */
-declare module '@deepseek-ai/dsh-typert-protocol' {
-  interface TypertRemoteNamespaceMap {
-    taskBoard: {
-      create(input: TaskCreateInput): Promise<TaskView>
-      get(id: TaskId): Promise<TaskView | undefined>
-      list(): Promise<readonly TaskView[]>
-      update(id: TaskId, expectedRevision: number, input: TaskUpdateInput): Promise<TaskView>
-      assignSession(sessionId: SessionId, taskId: TaskId): Promise<TaskAssignment>
-      unassignSession(sessionId: SessionId): Promise<boolean>
-      getAssignment(sessionId: SessionId): Promise<TaskAssignment | undefined>
-    }
-  }
-}
+import { taskBoardRemote } from './task-board-remote.ts'
 
 /** Extend the locale namespace map with this plugin's key set. */
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -66,9 +42,13 @@ const NS = 'taskBoard'
 /**
  * Required client-side services. `sessions` supplies the current-session id
  * to the click handler; `locale` is the standard-kit locale seat; `slots`
- * and `remote` are consumed by the action's inject face.
+ * mounts the sidebar entry. `remote` is intentionally NOT injected — the
+ * plugin calls the RPC channel through a direct-fetch caller (see
+ * ./task-board-remote.ts) because the harness client-side `ctx.remote` is a
+ * proxy over a static list of Typert contributions the boot assembly picks,
+ * and a third-party namespace like `taskBoard` cannot appear there.
  */
-export const inject = ['slots', 'remote', 'locale', 'sessions']
+export const inject = ['slots', 'locale', 'sessions']
 
 /**
  * Client plugin body.
@@ -102,7 +82,7 @@ export function apply(ctx: Context): void {
     // click time. The read is intentionally imperative (not a hook) — the
     // action does not need to re-render on session change.
     inject: (): TaskBoardActionInjected => ({
-      remote: ctx.remote.taskBoard,
+      remote: taskBoardRemote,
       currentSessionId: () => sessions().list.getSnapshot().current,
     }),
   }, TaskBoardAction))

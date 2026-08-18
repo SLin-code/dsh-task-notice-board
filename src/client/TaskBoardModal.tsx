@@ -13,12 +13,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import clsx from 'clsx'
 import { Button, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
-import type { TypertRemoteNamespaceMap } from '@deepseek-ai/dsh-typert-protocol'
 import type { TaskAssignment, TaskCreateInput, TaskId, TaskView } from '../task/types.ts'
 import { interpolate, type TaskBoardStrings } from './locales.ts'
+import type { TaskBoardRemote } from './task-board-remote.ts'
 import css from './TaskBoardModal.module.css'
 
-type RemoteFace = TypertRemoteNamespaceMap['taskBoard']
+type RemoteFace = TaskBoardRemote
 
 /** Locale accessor as the standard-kit slot seat provides it. */
 type Translate = (key: keyof TaskBoardStrings) => string
