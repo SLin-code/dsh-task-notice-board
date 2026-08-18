@@ -104,18 +104,34 @@ const cssModulesPlugin = {
  * `SyntaxError: Invalid or unexpected token` the moment the Harness Loader
  * imports the entry.
  */
+/**
+ * Node-side ESM library.
+ *
+ * IMPORTANT: this reads from `lib/**` (tsc's emit), NOT from `src/**`. The
+ * source uses stage-3 decorators (`@Remote` on TaskStore methods); rolldown/oxc
+ * 1.2 only lowers the *legacy* decorator flavour, which produces `__decorate`
+ * helper calls whose signature is not what Typert's `Remote` runtime function
+ * expects — a legacy lowering compiles clean but throws
+ * `typert-protocol: Remote decorators require a public instance method with a
+ * string name` at import time. TypeScript's own emit implements the stage-3
+ * runtime semantics correctly, so the `prepare` / `build` script runs
+ * `tsc -b tsconfig.build.json` first and this bundler stage only bundles the
+ * already-lowered JS.
+ */
 const nodeConfig: UserConfig = {
   entry: [
-    'src/index.ts',
-    'src/task/index.ts',
-    'src/task-context-sync/index.ts',
-    'src/tool-task-context/index.ts',
+    'lib/index.js',
+    'lib/task/index.js',
+    'lib/task-context-sync/index.js',
+    'lib/tool-task-context/index.js',
   ],
   outDir: 'dist',
   format: ['esm'],
   platform: 'node',
   target: 'es2022',
-  dts: true,
+  // tsc already produced .d.ts alongside the .js in lib/; the copy-dts step
+  // below moves them into place so consumers see them at dist/.
+  dts: false,
   clean: true,
   sourcemap: true,
 }

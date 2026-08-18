@@ -34,8 +34,11 @@
     "!dist/**/*.map"
   ],
   "scripts": {
-    "build": "tsdown",
-    "clean": "rm -rf dist",
+    "build": "pnpm run build:tsc && pnpm run build:bundle && pnpm run build:copy-dts",
+    "build:tsc": "tsc -p tsconfig.build.json",
+    "build:bundle": "tsdown",
+    "build:copy-dts": "node scripts/copy-dts.mjs",
+    "clean": "rm -rf dist lib",
     "typecheck": "tsc --noEmit",
     "check": "pnpm run typecheck && pnpm run build && pnpm pack --pack-destination .pack",
     "prepare": "pnpm run build"
