@@ -13,8 +13,10 @@ This plugin treats a Task as the long-lived collaboration boundary. Sessions ass
 - Bounded `task_context_search`
 - Closed Tasks reject new collaborative updates without stopping Sessions
 - No raw transcript synchronization and no proactive Session wake-up
+- Typert Remote face `ctx.remote.taskBoard.*` on the browser, served by the host `TaskStore`
+- Task Board view tab under `conversation.view`: list, create, close/reopen, assign / unassign the current session, and browse retained entries
 
-The current release provides the runtime and Host-side `ctx.tasks` API. The visual board, Task administration routes, Session assignment UI, and confirmation cards are not implemented yet.
+Installing the plugin into the `web` profile is all it takes — the browser page picks up the client bundle through harness's own `dsh.client` scanner and the Task Board tab appears beside chat and trajectory in every open Session. No harness patch, no static registration, no manual UI wiring.
 
 ## Requirements
 

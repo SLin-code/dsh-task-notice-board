@@ -9,8 +9,10 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
     "types": ["node"],
+    "lib": ["ES2024", "DOM", "DOM.Iterable"],
     "noEmit": true
   },
-  "include": ["src/**/*.ts", "tsdown.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "tsdown.config.ts"]
 }

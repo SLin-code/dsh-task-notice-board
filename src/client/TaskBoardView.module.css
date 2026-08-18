@@ -1,0 +1,333 @@
+/*
+ * Task Board view styles. Kept plain-CSS-modules deliberately — the harness
+ * client-bundle pipeline compiles .module.css through lightningcss and hashes
+ * class names per plugin, so nothing here bleeds into other views.
+ */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 16px;
+  gap: 12px;
+  overflow: auto;
+  color: var(--text-primary, #1f2328);
+  background: var(--surface-background, #ffffff);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  gap: 8px;
+}
+
+.button,
+.buttonPrimary,
+.buttonGhost,
+.buttonSmall {
+  font: inherit;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border-default, #d0d7de);
+  background: var(--button-bg, #f6f8fa);
+  color: inherit;
+  cursor: pointer;
+}
+
+.button:hover,
+.buttonPrimary:hover,
+.buttonGhost:hover,
+.buttonSmall:hover {
+  filter: brightness(0.95);
+}
+
+.button:disabled,
+.buttonPrimary:disabled,
+.buttonSmall:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.buttonPrimary {
+  background: var(--button-primary-bg, #2da44e);
+  border-color: transparent;
+  color: var(--button-primary-text, #ffffff);
+}
+
+.buttonGhost {
+  background: transparent;
+}
+
+.buttonSmall {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.error {
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--danger-background, #ffebe9);
+  color: var(--danger-text, #cf222e);
+  border: 1px solid var(--danger-border, #ff8182);
+  font-size: 13px;
+}
+
+.assignmentBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--info-background, #ddf4ff);
+  border: 1px solid var(--info-border, #54aeff);
+  font-size: 13px;
+}
+
+.muted {
+  color: var(--text-secondary, #656d76);
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(280px, 40%) 1fr;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: auto;
+}
+
+.empty {
+  color: var(--text-secondary, #656d76);
+  padding: 12px;
+  border: 1px dashed var(--border-default, #d0d7de);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--border-default, #d0d7de);
+  border-radius: 6px;
+  background: var(--surface-secondary, #f6f8fa);
+}
+
+.rowCurrent {
+  border-color: var(--info-border, #54aeff);
+  background: var(--info-background, #ddf4ff);
+}
+
+.rowSelected {
+  outline: 2px solid var(--accent-emphasis, #0969da);
+  outline-offset: -1px;
+}
+
+.rowMain {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 6px;
+}
+
+.rowTitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.rowMeta {
+  font-size: 12px;
+  color: var(--text-secondary, #656d76);
+  margin-top: 2px;
+}
+
+.badgeClosed,
+.badgeCurrent {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badgeClosed {
+  background: var(--neutral-muted, #eaeef2);
+  color: var(--text-secondary, #656d76);
+}
+
+.badgeCurrent {
+  background: var(--accent-emphasis, #0969da);
+  color: #ffffff;
+}
+
+.rowActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detail {
+  border: 1px solid var(--border-default, #d0d7de);
+  border-radius: 6px;
+  padding: 12px;
+  overflow: auto;
+  background: var(--surface-secondary, #f6f8fa);
+}
+
+.detailInner {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detailHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detailTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.detailSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #656d76);
+}
+
+.pre {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: var(--surface-background, #ffffff);
+  border: 1px solid var(--border-muted, #eaeef2);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.entries {
+  list-style: decimal inside;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entry {
+  padding: 6px 8px;
+  border: 1px solid var(--border-muted, #eaeef2);
+  border-radius: 4px;
+  background: var(--surface-background, #ffffff);
+}
+
+.entryMeta {
+  font-size: 11px;
+  color: var(--text-secondary, #656d76);
+  margin-bottom: 4px;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 20, 25, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  width: min(480px, 90vw);
+  background: var(--surface-background, #ffffff);
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.modalTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #656d76);
+}
+
+.input,
+.textarea {
+  font: inherit;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-default, #d0d7de);
+  background: var(--surface-background, #ffffff);
+  color: inherit;
+}
+
+.textarea {
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
