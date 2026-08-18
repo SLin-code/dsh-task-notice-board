@@ -3,3 +3,4 @@ dist/
 .pack/
 *.tgz
 .DS_Store
+pnpm-workspace.yaml
