@@ -20,8 +20,11 @@ Installing the plugin into the `web` profile is all it takes — the browser pag
 
 ## Requirements
 
-- DeepSeek Harness `0.1.0-rc.6` or newer compatible release
-- Node.js `^22.19.0` or `>=24`
+- DeepSeek Harness `0.1.0-rc.7` or newer compatible release
+- Node.js `^22.19.0` or `>=24` — the plugin ships stage-3 decorators in its
+  compiled artefacts (Typert `@Remote` markers) that Node parses natively only
+  in these versions; Node 23 will refuse to load the entries with
+  `SyntaxError: Invalid or unexpected token`.
 - pnpm 10+
 - The DSH `web` profile, whose storage services back Task persistence
 

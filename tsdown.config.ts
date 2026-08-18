@@ -94,7 +94,16 @@ const cssModulesPlugin = {
   },
 }
 
-/** Node-side ESM library: the host half + patch entries. */
+/**
+ * Node-side ESM library: the host half + patch entries.
+ *
+ * `target: es2022` is deliberate — the source uses stage-3 decorators
+ * (`@Remote` on TaskStore methods), and oxc only lowers them when the target
+ * is below es2024. Node 23 does not parse the raw stage-3 syntax as of writing,
+ * so an es2024 emit would compile locally then throw
+ * `SyntaxError: Invalid or unexpected token` the moment the Harness Loader
+ * imports the entry.
+ */
 const nodeConfig: UserConfig = {
   entry: [
     'src/index.ts',
@@ -105,7 +114,7 @@ const nodeConfig: UserConfig = {
   outDir: 'dist',
   format: ['esm'],
   platform: 'node',
-  target: 'es2024',
+  target: 'es2022',
   dts: true,
   clean: true,
   sourcemap: true,
