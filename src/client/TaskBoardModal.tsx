@@ -1,8 +1,12 @@
 /**
- * Task Board modal: full list / detail / create / assign / close surface,
- * portalled into the page through ui-primitives' Modal (which handles the
- * mask, Escape key, and body-level portal). Every read hits the remote
- * face; no client-side subscription.
+ * Task Board modal: single Modal instance, two views (`list` and `create`).
+ *
+ * The earlier version nested a second Modal for the create form; two Modals
+ * portal to `document.body` at once caused the primary card sizing to fight
+ * with the nested one and, more importantly, the nested Modal's Escape
+ * listener kept firing against the outer's `onClose`, which is the bug that
+ * made "Create Task" appear inert. Everything renders in one Modal here;
+ * `view` swaps the body and footer contents without unmounting the shell.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -37,7 +41,9 @@ interface LoadState {
 
 const EMPTY_STATE: LoadState = { loading: true, error: null, tasks: [], assignment: undefined }
 
-function formatBytes(text: string): number {
+type View = 'list' | 'create'
+
+function utf8ByteLength(text: string): number {
   return new TextEncoder().encode(text).length
 }
 
@@ -51,14 +57,20 @@ function errorMessage(cause: unknown): string {
 }
 
 /**
- * The modal.
+ * The Task Board modal.
  * @param props - open state, close callback, locale accessor, remote face,
  * and the current session id snapshot.
  */
 export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): JSX.Element | null {
   const [state, setState] = useState<LoadState>(EMPTY_STATE)
   const [selected, setSelected] = useState<TaskId | null>(null)
-  const [showCreate, setShowCreate] = useState(false)
+  const [view, setView] = useState<View>('list')
+
+  // Create-form state (kept alongside the parent so switching views does not
+  // reset a half-filled draft the user pushed off screen).
+  const [createTitle, setCreateTitle] = useState('')
+  const [createObjective, setCreateObjective] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const refresh = useCallback(async () => {
     setState(previous => ({ ...previous, loading: true, error: null }))
@@ -73,13 +85,14 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
     }
   }, [remote, sessionId])
 
-  // Reload every time the modal is opened. Otherwise data grows stale between
-  // sessions the user visited from another tab, another user, or the model.
   useEffect(() => {
     if (open) void refresh()
     else {
       setSelected(null)
-      setShowCreate(false)
+      setView('list')
+      setCreateTitle('')
+      setCreateObjective('')
+      setSubmitting(false)
     }
   }, [open, refresh])
 
@@ -94,16 +107,23 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
     [currentTaskId, state.tasks],
   )
 
-  const onCreate = useCallback(async (input: TaskCreateInput): Promise<boolean> => {
+  const onCreate = useCallback(async () => {
+    const title = createTitle.trim()
+    const objective = createObjective.trim()
+    if (title.length === 0 || objective.length === 0 || submitting) return
+    setSubmitting(true)
     try {
-      await remote.create(input)
+      await remote.create({ title, objective } satisfies TaskCreateInput)
+      setCreateTitle('')
+      setCreateObjective('')
+      setView('list')
       await refresh()
-      return true
     } catch (cause) {
       setState(previous => ({ ...previous, error: errorMessage(cause) }))
-      return false
+    } finally {
+      setSubmitting(false)
     }
-  }, [remote, refresh])
+  }, [remote, refresh, createTitle, createObjective, submitting])
 
   const onAssign = useCallback(async (taskId: TaskId) => {
     if (sessionId === undefined) return
@@ -125,7 +145,7 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
     }
   }, [remote, refresh, sessionId])
 
-  const onClose_ = useCallback(async (task: TaskView) => {
+  const onCloseTask = useCallback(async (task: TaskView) => {
     try {
       await remote.update(task.id, task.revision, { status: 'closed' })
       await refresh()
@@ -143,6 +163,30 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
     }
   }, [remote, refresh])
 
+  const canSubmit = createTitle.trim().length > 0 && createObjective.trim().length > 0 && !submitting
+
+  const listFooter = (
+    <>
+      <Button variant="ghost" onClick={() => void refresh()} disabled={state.loading}>
+        {t('button.refresh')}
+      </Button>
+      <Button variant="primary" onClick={() => setView('create')}>
+        {t('button.newTask')}
+      </Button>
+    </>
+  )
+
+  const createFooter = (
+    <>
+      <Button variant="ghost" onClick={() => setView('list')} disabled={submitting}>
+        {t('button.cancel')}
+      </Button>
+      <Button variant="primary" onClick={() => { void onCreate() }} disabled={!canSubmit}>
+        {submitting ? t('button.creating') : t('button.create')}
+      </Button>
+    </>
+  )
+
   return (
     <Modal
       open={open}
@@ -151,62 +195,100 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
       closeLabel={t('modal.close')}
       className={clsx(css.dialog)}
       contentClassName={clsx(css.content)}
-      footer={(
-        <div className={css.footer}>
-          <Button variant="ghost" onClick={() => void refresh()} disabled={state.loading}>
-            {t('button.refresh')}
-          </Button>
-          <Button variant="primary" onClick={() => setShowCreate(true)}>
-            {t('button.newTask')}
-          </Button>
-        </div>
-      )}
+      footer={view === 'list' ? listFooter : createFooter}
     >
-      {state.error !== null && <div className={css.error}>{state.error}</div>}
+      {state.error !== null && <div className={clsx(css.error)}>{state.error}</div>}
+      {view === 'list'
+        ? (
+          <ListView
+            t={t}
+            state={state}
+            sessionId={sessionId}
+            currentTask={currentTask}
+            currentTaskId={currentTaskId}
+            selected={selected}
+            selectedTask={selectedTask}
+            onSelect={setSelected}
+            onAssign={onAssign}
+            onUnassign={onUnassign}
+            onCloseTask={onCloseTask}
+            onReopen={onReopen}
+          />
+        )
+        : (
+          <CreateView
+            t={t}
+            title={createTitle}
+            objective={createObjective}
+            onTitleChange={setCreateTitle}
+            onObjectiveChange={setCreateObjective}
+          />
+        )}
+    </Modal>
+  )
+}
 
-      <div className={css.banner}>
+interface ListViewProps {
+  readonly t: Translate
+  readonly state: LoadState
+  readonly sessionId: SessionId | undefined
+  readonly currentTask: TaskView | undefined
+  readonly currentTaskId: TaskId | undefined
+  readonly selected: TaskId | null
+  readonly selectedTask: TaskView | undefined
+  onSelect(id: TaskId): void
+  onAssign(id: TaskId): Promise<void>
+  onUnassign(): Promise<void>
+  onCloseTask(task: TaskView): Promise<void>
+  onReopen(task: TaskView): Promise<void>
+}
+
+function ListView({
+  t, state, sessionId, currentTask, currentTaskId, selected, selectedTask,
+  onSelect, onAssign, onUnassign, onCloseTask, onReopen,
+}: ListViewProps): JSX.Element {
+  return (
+    <>
+      <div className={clsx(css.banner)}>
         {sessionId === undefined
-          ? <span className={css.muted}>{t('banner.notAssigned')}</span>
+          ? <span className={clsx(css.mutedInline)}>{t('banner.notAssigned')}</span>
           : currentTask === undefined
-            ? <span className={css.muted}>{t('banner.notAssigned')}</span>
+            ? <span className={clsx(css.mutedInline)}>{t('banner.notAssigned')}</span>
             : (
               <>
                 <span>{interpolate(t('banner.assignedTo'), { title: currentTask.title })}</span>
-                <Button variant="ghost" onClick={() => void onUnassign()}>
+                <Button variant="ghost" size="sm" onClick={() => { void onUnassign() }}>
                   {t('button.unassign')}
                 </Button>
               </>
             )}
       </div>
 
-      <div className={css.body}>
-        <ul className={css.list}>
+      <div className={clsx(css.body)}>
+        <ul className={clsx(css.list)}>
           {state.tasks.length === 0 && !state.loading && (
-            <li className={css.empty}>{t('list.empty')}</li>
+            <li className={clsx(css.empty)}>{t('list.empty')}</li>
           )}
           {state.tasks.map((task) => {
             const isCurrent = currentTaskId === task.id
             const isSelected = selected === task.id
-            const rowClasses = [css.row]
-            if (isCurrent) rowClasses.push(css.rowCurrent)
-            if (isSelected) rowClasses.push(css.rowSelected)
             return (
-              <li key={task.id} className={rowClasses.join(' ')}>
+              <li key={task.id} className={clsx(css.row, isCurrent && css.rowCurrent, isSelected && css.rowSelected)}>
                 <button
                   type="button"
-                  className={css.rowMain}
-                  onClick={() => setSelected(task.id)}
+                  className={clsx(css.rowMain)}
+                  onClick={() => onSelect(task.id)}
                 >
-                  <div className={css.rowTitle}>
-                    <span>{task.title}</span>
+                  <div className={clsx(css.rowTitle)}>
+                    <span className={clsx(css.rowTitleText)}>{task.title}</span>
                     {task.status === 'closed' && (
-                      <span className={css.badgeClosed}>{t('list.badge.closed')}</span>
+                      <span className={clsx(css.badgeClosed)}>{t('list.badge.closed')}</span>
                     )}
                     {isCurrent && (
-                      <span className={css.badgeCurrent}>{t('list.badge.current')}</span>
+                      <span className={clsx(css.badgeCurrent)}>{t('list.badge.current')}</span>
                     )}
                   </div>
-                  <div className={css.rowMeta}>
+                  <div className={clsx(css.rowMeta)}>
                     {interpolate(t('list.rowMeta'), {
                       revision: task.revision,
                       entries: task.entries.length,
@@ -214,20 +296,20 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
                     })}
                   </div>
                 </button>
-                <div className={css.rowActions}>
+                <div className={clsx(css.rowActions)}>
                   {sessionId !== undefined && !isCurrent && task.status === 'open' && (
-                    <Button variant="ghost" onClick={() => void onAssign(task.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => { void onAssign(task.id) }}>
                       {t('button.assign')}
                     </Button>
                   )}
                   {task.status === 'open'
                     ? (
-                      <Button variant="ghost" onClick={() => void onClose_(task)}>
+                      <Button variant="ghost" size="sm" onClick={() => { void onCloseTask(task) }}>
                         {t('button.close')}
                       </Button>
                     )
                     : (
-                      <Button variant="ghost" onClick={() => void onReopen(task)}>
+                      <Button variant="ghost" size="sm" onClick={() => { void onReopen(task) }}>
                         {t('button.reopen')}
                       </Button>
                     )}
@@ -237,59 +319,48 @@ export function TaskBoardModal({ open, onClose, t, remote, sessionId }: Props): 
           })}
         </ul>
 
-        <aside className={css.detail}>
+        <aside className={clsx(css.detail)}>
           {selectedTask === undefined
-            ? <span className={css.muted}>{t('detail.placeholder')}</span>
+            ? <div className={clsx(css.detailPlaceholder)}>{t('detail.placeholder')}</div>
             : <TaskDetail task={selectedTask} t={t} />}
         </aside>
       </div>
-
-      {showCreate && (
-        <CreateDialog
-          t={t}
-          onCancel={() => setShowCreate(false)}
-          onSubmit={async (input) => {
-            const ok = await onCreate(input)
-            if (ok) setShowCreate(false)
-          }}
-        />
-      )}
-    </Modal>
+    </>
   )
 }
 
 /** Objective + retained entries pane. */
 function TaskDetail({ task, t }: { task: TaskView, t: Translate }): JSX.Element {
   return (
-    <div className={css.detailInner}>
-      <div className={css.detailHeader}>
-        <div className={css.detailTitle}>{task.title}</div>
-        <div className={css.muted}>
+    <div className={clsx(css.detailInner)}>
+      <div className={clsx(css.detailHeader)}>
+        <div className={clsx(css.detailTitle)}>{task.title}</div>
+        <div className={clsx(css.detailMeta)}>
           {interpolate(t('detail.metaLine'), { revision: task.revision, status: task.status })}
         </div>
       </div>
-      <div className={css.detailSection}>
-        <div className={css.sectionLabel}>{t('detail.objectiveLabel')}</div>
-        <pre className={css.pre}>{task.objective}</pre>
+      <div className={clsx(css.detailSection)}>
+        <div className={clsx(css.sectionLabel)}>{t('detail.objectiveLabel')}</div>
+        <pre className={clsx(css.pre)}>{task.objective}</pre>
       </div>
-      <div className={css.detailSection}>
-        <div className={css.sectionLabel}>
+      <div className={clsx(css.detailSection)}>
+        <div className={clsx(css.sectionLabel)}>
           {interpolate(t('detail.entriesLabel'), { count: task.entries.length })}
         </div>
         {task.entries.length === 0
-          ? <span className={css.muted}>{t('detail.entriesEmpty')}</span>
+          ? <div className={clsx(css.detailPlaceholder)}>{t('detail.entriesEmpty')}</div>
           : (
-            <ol className={css.entries}>
+            <ol className={clsx(css.entries)}>
               {task.entries.map(entry => (
-                <li key={entry.id} className={css.entry}>
-                  <div className={css.entryMeta}>
+                <li key={entry.id} className={clsx(css.entry)}>
+                  <div className={clsx(css.entryMeta)}>
                     {interpolate(t('detail.entryMeta'), {
                       revision: entry.revision,
-                      bytes: formatBytes(entry.text),
+                      bytes: utf8ByteLength(entry.text),
                       when: formatTimestamp(entry.createdAt),
                     })}
                   </div>
-                  <pre className={css.pre}>{entry.text}</pre>
+                  <pre className={clsx(css.pre)}>{entry.text}</pre>
                 </li>
               ))}
             </ol>
@@ -299,67 +370,37 @@ function TaskDetail({ task, t }: { task: TaskView, t: Translate }): JSX.Element 
   )
 }
 
-/** Inline "new task" dialog. */
-function CreateDialog({
-  t,
-  onCancel,
-  onSubmit,
-}: {
-  t: Translate
-  onCancel: () => void
-  onSubmit: (input: TaskCreateInput) => Promise<void>
-}): JSX.Element {
-  const [title, setTitle] = useState('')
-  const [objective, setObjective] = useState('')
-  const [submitting, setSubmitting] = useState(false)
+interface CreateViewProps {
+  readonly t: Translate
+  readonly title: string
+  readonly objective: string
+  onTitleChange(next: string): void
+  onObjectiveChange(next: string): void
+}
 
-  const canSubmit = title.trim().length > 0 && objective.trim().length > 0 && !submitting
-
+/** Inline "new task" view, part of the same outer modal. */
+function CreateView({ t, title, objective, onTitleChange, onObjectiveChange }: CreateViewProps): JSX.Element {
   return (
-    <Modal
-      open
-      onClose={onCancel}
-      title={t('button.newTask')}
-      closeLabel={t('button.cancel')}
-      className={clsx(css.createDialog)}
-      footer={(
-        <div className={css.footer}>
-          <Button variant="ghost" onClick={onCancel} disabled={submitting}>
-            {t('button.cancel')}
-          </Button>
-          <Button
-            variant="primary"
-            disabled={!canSubmit}
-            onClick={() => {
-              setSubmitting(true)
-              void onSubmit({ title: title.trim(), objective: objective.trim() })
-                .finally(() => setSubmitting(false))
-            }}
-          >
-            {submitting ? t('button.creating') : t('button.create')}
-          </Button>
-        </div>
-      )}
-    >
-      <label className={css.field}>
-        <span className={css.fieldLabel}>{t('form.titleLabel')}</span>
+    <div className={clsx(css.form)}>
+      <label className={clsx(css.field)}>
+        <span className={clsx(css.fieldLabel)}>{t('form.titleLabel')}</span>
         <Input
           value={title}
-          onChange={event => setTitle(event.target.value)}
+          onChange={event => onTitleChange(event.target.value)}
           placeholder={t('form.titlePlaceholder')}
           autoFocus
         />
       </label>
-      <label className={css.field}>
-        <span className={css.fieldLabel}>{t('form.objectiveLabel')}</span>
+      <label className={clsx(css.field)}>
+        <span className={clsx(css.fieldLabel)}>{t('form.objectiveLabel')}</span>
         <textarea
-          className={css.textarea}
-          rows={6}
+          className={clsx(css.textarea)}
+          rows={8}
           value={objective}
-          onChange={event => setObjective(event.target.value)}
+          onChange={event => onObjectiveChange(event.target.value)}
           placeholder={t('form.objectivePlaceholder')}
         />
       </label>
-    </Modal>
+    </div>
   )
 }
