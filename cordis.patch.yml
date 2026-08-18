@@ -2,7 +2,7 @@
 # the durable storage, storage-json, and storage-domain service rows used here.
 - insert:
     - id: task
-      name: 'dsh-task-collaboration/task'
+      name: 'dsh-task-notice-board/task'
       config:
         maxTitleBytes: 256
         maxObjectiveBytes: 8192
@@ -10,12 +10,12 @@
         maxEntries: 100
 
     - id: task-context-sync
-      name: 'dsh-task-collaboration/task-context-sync'
+      name: 'dsh-task-notice-board/task-context-sync'
       config:
         maxContextBytes: 16384
 
     - id: tool-task-context
-      name: 'dsh-task-collaboration/tool-task-context'
+      name: 'dsh-task-notice-board/tool-task-context'
       config:
         maxSearchResults: 20
         maxSearchBytes: 16384

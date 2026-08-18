@@ -1,5 +1,5 @@
 {
-  "name": "dsh-task-collaboration",
+  "name": "dsh-task-notice-board",
   "version": "0.1.0",
   "description": "Task-scoped durable context shared across DeepSeek Harness sessions",
   "type": "module",
@@ -50,7 +50,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SLin-code/dsh-task-collaboration.git"
+    "url": "git+https://github.com/SLin-code/dsh-task-notice-board.git"
   },
   "dependencies": {
     "@deepseek-ai/cordis": "^4.0.1",

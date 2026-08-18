@@ -1,4 +1,4 @@
-# DSH Task Collaboration
+# DSH Task Notice Board
 
 Task-scoped durable context shared by multiple DeepSeek Harness sessions.
 
@@ -42,7 +42,7 @@ dsh web
 To remove it:
 
 ```sh
-dsh plugin --profile web remove dsh-task-collaboration
+dsh plugin --profile web remove dsh-task-notice-board
 ```
 
 ## Install from GitHub
@@ -50,7 +50,7 @@ dsh plugin --profile web remove dsh-task-collaboration
 After the repository is published:
 
 ```sh
-dsh plugin --profile web add github:SLin-code/dsh-task-collaboration
+dsh plugin --profile web add github:SLin-code/dsh-task-notice-board
 ```
 
 Git-hosted installation runs the package `prepare` script. pnpm may first require you to allow the reviewed `tsdown` build in the profile's `pnpm-workspace.yaml`; follow the exact key printed by DSH and repeat the install.
@@ -59,9 +59,9 @@ Git-hosted installation runs the package `prepare` script. pnpm may first requir
 
 The bundle adds three Cordis entries:
 
-- `dsh-task-collaboration/task` owns Task records, Task context, and Session assignments.
-- `dsh-task-collaboration/task-context-sync` projects bounded Task memory into the next model step.
-- `dsh-task-collaboration/tool-task-context` exposes publish and search tools to assigned Sessions.
+- `dsh-task-notice-board/task` owns Task records, Task context, and Session assignments.
+- `dsh-task-notice-board/task-context-sync` projects bounded Task memory into the next model step.
+- `dsh-task-notice-board/tool-task-context` exposes publish and search tools to assigned Sessions.
 
 Task assignment is currently performed by a Host plugin through `ctx.tasks`. A Session cannot switch Tasks after its first model step has started.
 
