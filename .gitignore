@@ -1,0 +1,5 @@
+node_modules/
+dist/
+.pack/
+*.tgz
+.DS_Store
