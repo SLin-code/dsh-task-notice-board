@@ -4,6 +4,20 @@ One installable DeepSeek Harness plugin for managing Workspace → Task → Sess
 
 This plugin treats a Task as the long-lived collaboration boundary. Sessions assigned to the same Task receive a bounded snapshot of its objective and retained updates on their next model step. Agents can publish durable findings and search older retained updates without copying raw transcripts.
 
+## Screenshots
+
+### Workspace Task Board
+
+![Workspace Task Board with Task status lanes and Workspace navigation](assets/screenshots/task-board.jpg)
+
+### Task workspace and Session Board
+
+![Task workspace with its Session Board and archived Session count](assets/screenshots/task-detail.jpg)
+
+### Archived Sessions and Task long-term memory
+
+![Archived Sessions retained inside their Task alongside Task-scoped long-term memory](assets/screenshots/archive-and-memory.jpg)
+
 ## Current capabilities
 
 - Full-screen control center launched from the DSH sidebar
