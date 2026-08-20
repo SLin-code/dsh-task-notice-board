@@ -1,34 +1,26 @@
 /**
- * Direct fetch-based caller for the host TaskStore's Typert Remote face.
- *
- * Why not `ctx.remote.taskBoard.*`? — `ctx.remote` on the browser is a proxy
- * built from an explicit list of `TypertRemoteContribution` artefacts that
- * `@deepseek-ai/dsh-api-remotes` mounts at boot (see `packages/api/remotes/src/
- * client/index.ts` in the harness: only commands / goals / cordis / plugin
- * inventory / message-feedback are `$mount`ed). A third-party plugin has no
- * way to register a new namespace on that proxy without a compiled Typert
- * contribution — a build-time artefact this plugin does not (and can not
- * cheaply) produce. So we bypass the typed proxy and speak the Connection
- * RPC wire protocol directly. Server-side the Gateway resolves the endpoint
- * through its SRC reflection (see `packages/api/gateway/src/index.ts`) — the
- * host's `@Remote`-decorated TaskStore methods answer identically regardless
- * of whether the client came through the typed proxy or a plain fetch.
+ * Direct fetch caller for the TaskStore's dedicated Connection RPC channel.
+ * A third-party package cannot add a method to the browser's build-time
+ * `ctx.remote` contribution table. A separate generic channel also avoids
+ * coupling runtime discovery to whichever copy of the Typert protocol the
+ * host application loaded.
  */
 
 import type {
   TaskAssignment,
+  TaskContextEntryId,
   TaskCreateInput,
   TaskId,
+  TaskMemoryCreateInput,
+  TaskMemoryVerification,
+  TaskTranscriptPage,
   TaskUpdateInput,
   TaskView,
 } from '../task/types.ts'
 import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
 
-/** Namespace the host TaskStore binds via `super(ctx, 'tasks', { namespace: 'taskBoard' })`. */
-const NAMESPACE = 'taskBoard'
-
-/** RPC channel the Connection Gateway listens on. */
-const CHANNEL = '/api'
+/** Dedicated generic Connection channel registered by the host TaskStore. */
+const CHANNEL = '/task-board-rpc'
 
 /**
  * Client-side face of the host TaskStore. Every method maps one-to-one to a
@@ -39,9 +31,20 @@ export interface TaskBoardRemote {
   get(id: TaskId): Promise<TaskView | undefined>
   list(): Promise<readonly TaskView[]>
   update(id: TaskId, expectedRevision: number, input: TaskUpdateInput): Promise<TaskView>
+  remove(id: TaskId, expectedRevision: number): Promise<boolean>
+  listAssignments(): Promise<readonly TaskAssignment[]>
   assignSession(sessionId: SessionId, taskId: TaskId): Promise<TaskAssignment>
   unassignSession(sessionId: SessionId): Promise<boolean>
   getAssignment(sessionId: SessionId): Promise<TaskAssignment | undefined>
+  getTaskForSession(sessionId: SessionId): Promise<TaskView | undefined>
+  readSessionTranscript(taskId: TaskId, sessionId: SessionId, beforeSeq?: number): Promise<TaskTranscriptPage>
+  addMemory(id: TaskId, expectedRevision: number, input: TaskMemoryCreateInput): Promise<TaskView>
+  setMemoryVerification(
+    id: TaskId,
+    entryId: TaskContextEntryId,
+    expectedRevision: number,
+    verification: TaskMemoryVerification,
+  ): Promise<TaskView>
 }
 
 /** Server response envelope, matching the harness's `serverResponseSchema`. */
@@ -72,7 +75,7 @@ function newRpcId(): string {
  * failures with a message suitable for surfacing in the UI.
  */
 async function invoke<T>(method: string, args: Readonly<Record<string, unknown>>): Promise<T> {
-  const endpoint = `${NAMESPACE}/${method}`
+  const endpoint = method
   const rpcId = newRpcId()
   const message = {
     type: 'client-request',
@@ -108,7 +111,18 @@ export const taskBoardRemote: TaskBoardRemote = {
   get: (id) => invoke('get', { id }),
   list: () => invoke('list', {}),
   update: (id, expectedRevision, input) => invoke('update', { id, expectedRevision, input }),
+  remove: (id, expectedRevision) => invoke('remove', { id, expectedRevision }),
+  listAssignments: () => invoke('listAssignments', {}),
   assignSession: (sessionId, taskId) => invoke('assignSession', { sessionId, taskId }),
   unassignSession: (sessionId) => invoke('unassignSession', { sessionId }),
   getAssignment: (sessionId) => invoke('getAssignment', { sessionId }),
+  getTaskForSession: (sessionId) => invoke('getTaskForSession', { sessionId }),
+  readSessionTranscript: (taskId, sessionId, beforeSeq) => invoke('readSessionTranscript', {
+    taskId,
+    sessionId,
+    ...(beforeSeq === undefined ? {} : { beforeSeq }),
+  }),
+  addMemory: (id, expectedRevision, input) => invoke('addMemory', { id, expectedRevision, input }),
+  setMemoryVerification: (id, entryId, expectedRevision, verification) =>
+    invoke('setMemoryVerification', { id, entryId, expectedRevision, verification }),
 }

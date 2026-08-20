@@ -1,22 +1,34 @@
 # DSH Task Notice Board
 
-Task-scoped durable context shared by multiple DeepSeek Harness sessions.
+One installable DeepSeek Harness plugin for managing Workspace → Task → Session collaboration.
 
 This plugin treats a Task as the long-lived collaboration boundary. Sessions assigned to the same Task receive a bounded snapshot of its objective and retained updates on their next model step. Agents can publish durable findings and search older retained updates without copying raw transcripts.
 
 ## Current capabilities
 
-- Durable Task records with compare-and-set revisions
-- Session-lifecycle ownership by Task
-- Bounded, source-attributed cross-session context
-- Idempotent `task_context_publish`
-- Bounded `task_context_search`
-- Closed Tasks reject new collaborative updates without stopping Sessions
+- Full-screen control center launched from the DSH sidebar
+- Expandable Workspace → Task → Session navigation tree
+- Workspace-scoped four-lane Task Board: To do, In progress, Needs you, Done
+- Per-Task four-lane Session Board: Ready to continue, Running, Needs you, Ended
+- Native DSH approvals, questions, and plan reviews are surfaced directly in the Needs-you lane
+- One coherent Task status source: Session links no longer silently move Tasks between lanes; pending Session interactions are the only temporary override
+- Human-readable Task cards hide internal storage keys and use compact lane controls
+- Create a native DSH Session from a Task, bind it before opening, then return to the native conversation UI
+- Every assigned Session shows its owning Task in the native Session header; selecting it reopens the control center directly at that Task
+- Strong Session ownership: after the first model step, a Session cannot silently switch Tasks
+- Focused Task long-term memory composer: progress summary, key decision, current blocker, and handoff (older finding/evidence records remain readable)
+- User-authored memories are verified; Session-authored memories retain source Session and verification state
+- Bounded, source-attributed cross-Session context on every next model step
+- Idempotent `task_context_publish` and bounded `task_context_search`
 - No raw transcript synchronization and no proactive Session wake-up
-- Typert Remote face `ctx.remote.taskBoard.*` on the browser, served by the host `TaskStore`
-- Task Board view tab under `conversation.view`: list, create, close/reopen, assign / unassign the current session, and browse retained entries
+- Closed Tasks reject new collaborative updates without stopping Sessions
+- Archiving commits the Task first so it leaves the active board immediately, then idempotently archives all linked Sessions through DSH
+- Archived Sessions remain inside their owning Task with an inline, read-only conversation viewer; partial Session archive failures are shown there with a retry action
+- The archived viewer shows human prompts and visible assistant output, while omitting injected context, reasoning, tool arguments, and tool-result contents
+- Restoring a Task returns it to To do; DSH Sessions stay archived because the current DSH API has no matching restore operation
+- Deleting a Task removes its retained memory and all Session assignments, but never deletes native DSH Sessions or transcripts
 
-Installing the plugin into the `web` profile is all it takes — the browser page picks up the client bundle through harness's own `dsh.client` scanner and the Task Board tab appears beside chat and trajectory in every open Session. No harness patch, no static registration, no manual UI wiring.
+Installing the package into the `web` profile is all it takes. The browser picks up the client bundle through the harness plugin scanner and adds one Task Control Center entry to the sidebar. No DeepSeek Harness source patch or manual UI wiring is required.
 
 ## Requirements
 
@@ -62,13 +74,15 @@ Git-hosted installation runs the package `prepare` script. pnpm may first requir
 
 ## Runtime model
 
-The bundle adds three Cordis entries:
+The npm package exposes one Cordis plugin entry. Internally that entry composes three implementation seats:
 
 - `dsh-task-notice-board/task` owns Task records, Task context, and Session assignments.
 - `dsh-task-notice-board/task-context-sync` projects bounded Task memory into the next model step.
 - `dsh-task-notice-board/tool-task-context` exposes publish and search tools to assigned Sessions.
 
-Task assignment is currently performed by a Host plugin through `ctx.tasks`. A Session cannot switch Tasks after its first model step has started.
+The browser reuses native DSH Workspace and Session services. Task creation never creates a second workspace model, and opening a Session always returns to the native DSH conversation surface.
+
+Archived conversation history is read from DSH's durable Session log only when the user selects a Session inside its Task. It is not copied into Task long-term memory, and restoring the Task is not required to read it.
 
 ## License
 

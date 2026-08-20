@@ -1,0 +1,66 @@
+.trigger {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(340px, 32vw);
+  min-height: 28px;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--dsw-alias-border-accent, #0969da) 24%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--dsw-alias-bg-accent-subtle, #ddf4ff) 46%, transparent);
+  color: var(--dsw-alias-label-accent, #0969da);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11px;
+  line-height: 18px;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+  border-color: color-mix(in srgb, var(--dsw-alias-border-accent, #0969da) 48%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-bg-accent-subtle, #ddf4ff) 78%, transparent);
+  color: color-mix(in srgb, var(--dsw-alias-label-accent, #0969da) 86%, #000);
+}
+
+.trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--dsw-alias-border-accent, #0969da) 34%, transparent);
+  outline-offset: 2px;
+}
+
+.trigger svg {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.45;
+}
+
+.prefix {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary, #8c959f);
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.blankReturn {
+  display: flex;
+  width: 100%;
+  max-width: 920px;
+  justify-content: flex-start;
+  padding: 0 2px;
+}
+
+.blankReturn .trigger {
+  max-width: min(520px, 76vw);
+  border-style: dashed;
+  background: color-mix(in srgb, var(--dsw-alias-bg-accent-subtle, #ddf4ff) 32%, transparent);
+}

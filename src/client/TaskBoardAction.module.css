@@ -5,24 +5,37 @@
 
 .rowRail,
 .rowWide {
+  flex: none;
   display: flex;
   align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
   background: transparent;
   border: none;
   color: inherit;
   cursor: pointer;
   font: inherit;
-  border-radius: 6px;
-  padding: 6px 8px;
-  width: 100%;
-  gap: 8px;
+  font-size: 14px;
+  line-height: 22px;
+  overflow: hidden;
+}
+
+.rowWide {
+  width: calc(100% + 4px);
+  height: 42px;
+  margin: 4px -2px;
+  padding: 0 10px 0 8px;
+  border-radius: 12px;
 }
 
 .rowRail {
   justify-content: center;
-  padding: 8px;
-  width: 40px;
-  height: 40px;
+  gap: 0;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
 }
 
 .rowRail:hover,
@@ -36,9 +49,7 @@
 }
 
 .label {
-  font-size: 13px;
-  flex: 1;
-  text-align: left;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

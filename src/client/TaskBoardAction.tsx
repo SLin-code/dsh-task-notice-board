@@ -10,21 +10,31 @@
  * user is looking at without re-rendering on every session change.
  */
 
-import { useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import clsx from 'clsx'
 import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { SessionId } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ISessions, IWorkspaces, SessionId, WorkspaceId } from '@deepseek-ai/dsh-client-runtime/client'
 import type { TaskBoardRemote } from './task-board-remote.ts'
 import { TaskBoardModal } from './TaskBoardModal.tsx'
+import {
+  getTaskBoardOpenRequest,
+  subscribeTaskBoardOpenRequest,
+  type TaskBoardOpenRequest,
+} from './task-board-navigation.ts'
 import css from './TaskBoardAction.module.css'
 
 /** Business face injected by the sidebar-footer registration. */
 export interface TaskBoardActionInjected {
   /** Task remote face — direct-fetch caller talking to the host TaskStore. */
   readonly remote: TaskBoardRemote
-  /** Snapshot of the current session id, read fresh on each call. */
-  currentSessionId(): SessionId | undefined
+  /** Native DSH Session navigation and live status feed. */
+  readonly sessions: ISessions & {
+    /** Concrete rc.7 runtime method used to guarantee a fresh Task Session. */
+    create(opts: { workspaceId: WorkspaceId }): Promise<SessionId>
+  }
+  /** Native DSH Workspace feed and Session creation flow. */
+  readonly workspaces: IWorkspaces
 }
 
 /** Composed component props for the sidebar-footer entry. */
@@ -38,10 +48,24 @@ type Props =
  * @param props - wide-state owner share, locale seat, remote face, and
  * current-session accessor.
  */
-export function TaskBoardAction({ wide, t, remote, currentSessionId }: Props): JSX.Element {
+export function TaskBoardAction({ wide, t, remote, sessions, workspaces }: Props): JSX.Element {
   const [open, setOpen] = useState(false)
+  const [entryRequest, setEntryRequest] = useState<TaskBoardOpenRequest | null>(null)
+  const navigationRequest = useSyncExternalStore(
+    subscribeTaskBoardOpenRequest,
+    getTaskBoardOpenRequest,
+    getTaskBoardOpenRequest,
+  )
+  const handledRequest = useRef(navigationRequest?.revision ?? 0)
   const label = t('sidebar.action.label')
   const tooltip = t('sidebar.action.tooltip')
+
+  useEffect(() => {
+    if (navigationRequest === null || navigationRequest.revision === handledRequest.current) return
+    handledRequest.current = navigationRequest.revision
+    setEntryRequest(navigationRequest)
+    setOpen(true)
+  }, [navigationRequest])
 
   return (
     <>
@@ -50,7 +74,7 @@ export function TaskBoardAction({ wide, t, remote, currentSessionId }: Props): J
           type="button"
           className={clsx(wide ? css.rowWide : css.rowRail)}
           aria-label={tooltip}
-          onClick={() => setOpen(true)}
+          onClick={() => { setEntryRequest(null); setOpen(true) }}
         >
           <TaskBoardIcon size={wide ? 16 : 18} className={clsx(css.icon)} />
           {wide && <span className={clsx(css.label)}>{label}</span>}
@@ -58,10 +82,12 @@ export function TaskBoardAction({ wide, t, remote, currentSessionId }: Props): J
       </Tooltip>
       <TaskBoardModal
         open={open}
-        onClose={() => setOpen(false)}
+        entryRequest={entryRequest}
+        onClose={() => { setOpen(false); setEntryRequest(null) }}
         t={t}
         remote={remote}
-        sessionId={open ? currentSessionId() : undefined}
+        sessions={sessions}
+        workspaces={workspaces}
       />
     </>
   )

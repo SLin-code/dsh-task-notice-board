@@ -9,22 +9,25 @@
  * page: every open Session lookup is driven by the framework-injected
  * `sessionId` at the moment the user is on that Session.
  *
- * Task reads and writes ride a plain-fetch caller (see
- * ./task-board-remote.ts) rather than `ctx.remote.taskBoard.*` — the harness
- * client-side `ctx.remote` proxy is built from a static list of Typert
- * contributions bundled at boot, so third-party namespaces cannot appear on
- * it without a build-time artefact. The Gateway on the server, however,
- * resolves any @Remote-decorated Service by SRC reflection, so the wire
- * endpoint answers just fine. Copy is localized through `ctx.locale`,
+ * Task reads and writes use the plugin's dedicated Connection RPC channel
+ * because the harness client-side `ctx.remote` proxy is a build-time list of
+ * first-party Typert contributions. Copy is localized through `ctx.locale`,
  * namespace `taskBoard`.
  */
 import type { Context } from '@deepseek-ai/cordis'
-import type { ISessions } from '@deepseek-ai/dsh-client-runtime/client'
+import type { ISessions, IWorkspaces } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pull the ui-locale merge (ctx.locale).
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 // Type-only: pull the sidebar SlotMap merge (`sidebar.footer.action`).
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+// Type-only: pull the native Session header action slot.
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import { TaskBoardAction, type TaskBoardActionInjected } from './TaskBoardAction.tsx'
+import {
+  BlankTaskReturnAction,
+  TaskReturnAction,
+  type TaskReturnActionInjected,
+} from './TaskReturnAction.tsx'
 import { en, zh, type TaskBoardKey } from './locales.ts'
 import { taskBoardRemote } from './task-board-remote.ts'
 
@@ -45,10 +48,9 @@ const NS = 'taskBoard'
  * mounts the sidebar entry. `remote` is intentionally NOT injected — the
  * plugin calls the RPC channel through a direct-fetch caller (see
  * ./task-board-remote.ts) because the harness client-side `ctx.remote` is a
- * proxy over a static list of Typert contributions the boot assembly picks,
- * and a third-party namespace like `taskBoard` cannot appear there.
+ * proxy over a static list of Typert contributions the boot assembly picks.
  */
-export const inject = ['slots', 'locale', 'sessions']
+export const inject = ['slots', 'locale', 'sessions', 'workspaces']
 
 /**
  * Client plugin body.
@@ -69,6 +71,7 @@ export function apply(ctx: Context): void {
   // the shape to the runtime's actual ISessions face; the runtime resolves
   // the service by name regardless of type-realm identity.
   const sessions = () => (ctx as unknown as { sessions: ISessions }).sessions
+  const workspaces = () => (ctx as unknown as { workspaces: IWorkspaces }).workspaces
 
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'task-notice-board: dictionaries')
 
@@ -83,7 +86,24 @@ export function apply(ctx: Context): void {
     // action does not need to re-render on session change.
     inject: (): TaskBoardActionInjected => ({
       remote: taskBoardRemote,
-      currentSessionId: () => sessions().list.getSnapshot().current,
+      sessions: sessions() as TaskBoardActionInjected['sessions'],
+      workspaces: workspaces(),
     }),
   }, TaskBoardAction))
+
+  ctx.slots.inject('conversation.session.header.actions', () => ctx.slots.register({
+    name: 'conversation.session.header.actions',
+    id: 'task-return',
+    order: 5,
+    locale: NS,
+    inject: (): TaskReturnActionInjected => ({ remote: taskBoardRemote }),
+  }, TaskReturnAction))
+
+  ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
+    name: 'conversation.input.dock',
+    id: 'task-return-blank',
+    order: -20,
+    locale: NS,
+    inject: (): TaskReturnActionInjected => ({ remote: taskBoardRemote }),
+  }, BlankTaskReturnAction))
 }
